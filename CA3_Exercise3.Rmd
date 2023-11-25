@@ -1,0 +1,85 @@
+---
+title: "CA3_Exercise3"
+author: "Kieran Lennon 19463464"
+date: "2023-11-25"
+output: html_document
+---
+
+Exercise 3
+3.1, 3.2, 3.3
+```{r}
+df <- with(mtcars, data.frame(y = mpg, x1 = disp, x2 = hp, x3 = wt))
+
+
+nll_lm <- function(par, data,...) {
+  y <- data$y
+  X <- as.matrix(data[, -1])  # Exclude the response variable
+  residuals <- y - X %*% par[1:(ncol(X))]
+  sigma <- par[ncol(X) + 1]
+
+  # Check for non-finite values
+  if (any(!is.finite(residuals)) || !is.finite(sigma)) {
+    return(.Machine$double.xmax)  # Return a large value to signal optimization failure
+  }
+
+  nll <- -sum(dnorm(residuals, mean = 0, sd = sigma, log = TRUE))
+  return(nll)
+}
+    
+
+
+# Initial parameter guess
+initial_guess <- c(mean(df$y), rep(0, ncol(df) - 1), 1)
+
+# Set lower and upper bounds
+lower_bounds <- c(-.Machine$double.xmin, rep(-.Machine$double.xmax, ncol(df) - 1), 0)
+upper_bounds <- c(.Machine$double.xmax, rep(.Machine$double.xmax, ncol(df) - 1), .Machine$double.xmax)
+
+# Use optim() to find MLE
+result <- optim(par = initial_guess, fn = nll_lm, data = df, method = "L-BFGS-B", lower = lower_bounds, upper = upper_bounds)
+
+
+
+# MLE parameter estimates
+mle_params <- result$par
+
+```
+
+
+
+3.5
+```{r}
+
+X <- as.matrix(cbind(1, df$x1, df$x2, df$x3))
+y <- df$y
+
+beta_hat <- solve(t(X) %*% X) %*% t(X) %*% y
+
+beta_hat
+
+
+```
+
+3.6
+```{r}
+
+residuals <- y - X %*% beta_hat
+sigma_hat <- sqrt(sum(residuals^2) / (length(y) - ncol(X)))
+
+sigma_hat
+
+
+```
+3.8
+```{r}
+
+se_calculator <- function(result, fn, data) 
+{
+  hessian <- numDeriv::hessian(fn, result$par, data = data)
+  se <- sqrt(diag(solve(hessian)))
+  return(se)
+}
+
+se_params <- se_calculator(result, nll_lm, data = df)
+
+```
